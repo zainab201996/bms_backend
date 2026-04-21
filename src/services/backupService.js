@@ -5,6 +5,29 @@ const { backupsRepo, addAuditLog, usersRepo } = require("../data/store");
 const { assertPathInsideBackupsRoot } = require("../config/paths");
 const { sendBackupSubmissionEmail } = require("./emailService");
 
+async function listBackupsWithNames(where) {
+  const repo = backupsRepo();
+  const backups = await repo.find({
+    where,
+    order: { updated_at: "DESC" },
+    relations: ["uploader", "renewedByUser"]
+  });
+  return backups.map((backup) => ({
+    id: Number(backup.id),
+    company_id: Number(backup.company_id),
+    uploaded_by: Number(backup.uploaded_by),
+    status: backup.status,
+    file_path: backup.file_path,
+    renewed_file_path: backup.renewed_file_path,
+    renewed_by: backup.renewed_by === null ? null : Number(backup.renewed_by),
+    remarks: backup.remarks,
+    created_at: backup.created_at,
+    updated_at: backup.updated_at,
+    company_name: backup.uploader?.name || null,
+    renewed_by_name: backup.renewedByUser?.name || null
+  }));
+}
+
 async function createBackup({ companyUser, absoluteFilePath }) {
   const normalized = path.resolve(absoluteFilePath);
   assertPathInsideBackupsRoot(normalized);
@@ -19,6 +42,7 @@ async function createBackup({ companyUser, absoluteFilePath }) {
     status: BACKUP_STATUS.PENDING,
     file_path: normalized,
     renewed_file_path: null,
+    renewed_by: null,
     remarks: null
   });
   const saved = await repo.save(backup);
@@ -30,23 +54,16 @@ async function createBackup({ companyUser, absoluteFilePath }) {
 }
 
 async function listBackupsForUser(user) {
-  const repo = backupsRepo();
-  let backups;
   if (user.type === USER_TYPES.ADMIN) {
-    backups = await repo.find({ order: { updated_at: "DESC" } });
-  } else if (user.type === USER_TYPES.COMPANY) {
-    backups = await repo.find({
-      where: { company_id: user.id },
-      order: { updated_at: "DESC" }
-    });
-  } else {
-    backups = await repo.find({
-      where: { status: BACKUP_STATUS.APPROVED },
-      order: { updated_at: "DESC" }
-    });
+    return listBackupsWithNames({});
   }
-
-  return backups;
+  if (user.type === USER_TYPES.COMPANY) {
+    return listBackupsWithNames({ uploaded_by: user.id });
+  }
+  return listBackupsWithNames([
+    { status: BACKUP_STATUS.APPROVED },
+    { status: BACKUP_STATUS.SUBMITTED, renewed_by: user.id }
+  ]);
 }
 
 async function getBackupForDownload(user, backupId) {
@@ -57,8 +74,12 @@ async function getBackupForDownload(user, backupId) {
   if (user.type === USER_TYPES.COMPANY && backup.company_id !== user.id) {
     throw new Error("Company can only access own backups");
   }
-  if (user.type === USER_TYPES.EMPLOYEE && backup.status !== BACKUP_STATUS.APPROVED) {
-    throw new Error("Employee can only access approved backups");
+  if (
+    user.type === USER_TYPES.EMPLOYEE &&
+    backup.status !== BACKUP_STATUS.APPROVED &&
+    backup.renewed_by !== user.id
+  ) {
+    throw new Error("Employee can only access approved or self-renewed backups");
   }
 
   assertPathInsideBackupsRoot(path.resolve(backup.file_path));
@@ -75,10 +96,14 @@ async function getRenewedBackupForDownload(user, backupId) {
   if (user.type === USER_TYPES.COMPANY && backup.company_id !== user.id) {
     throw new Error("Company can only access own backups");
   }
-  if (user.type === USER_TYPES.EMPLOYEE) {
-    throw new Error("Renewed file download is not available for this role");
+  if (user.type === USER_TYPES.EMPLOYEE && backup.renewed_by !== user.id) {
+    throw new Error("Employee can only access renewed files uploaded by self");
   }
-  if (user.type !== USER_TYPES.ADMIN && user.type !== USER_TYPES.COMPANY) {
+  if (
+    user.type !== USER_TYPES.ADMIN &&
+    user.type !== USER_TYPES.COMPANY &&
+    user.type !== USER_TYPES.EMPLOYEE
+  ) {
     throw new Error("Access denied");
   }
 
@@ -120,6 +145,7 @@ async function employeeSubmitRenewal({ employeeUser, backupId, renewedAbsolutePa
 
   backup.status = BACKUP_STATUS.SUBMITTED;
   backup.renewed_file_path = normalized;
+  backup.renewed_by = employeeUser.id;
   const saved = await repo.save(backup);
 
   const company = await usersRepo().findOne({ where: { id: saved.company_id } });
@@ -130,7 +156,10 @@ async function employeeSubmitRenewal({ employeeUser, backupId, renewedAbsolutePa
 
   await addAuditLog(employeeUser.id, AUDIT_ACTIONS.BACKUP_UPDATED, {
     id: saved.id,
-    table: AUDIT_TABLES.BACKUPS
+    table: AUDIT_TABLES.BACKUPS,
+    renewed_by: employeeUser.id,
+    previous_status: BACKUP_STATUS.APPROVED,
+    next_status: BACKUP_STATUS.SUBMITTED
   });
   return {
     backup: saved,

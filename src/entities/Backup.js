@@ -26,6 +26,10 @@ const BackupEntity = new EntitySchema({
       type: String,
       nullable: true
     },
+    renewed_by: {
+      type: "int",
+      nullable: true
+    },
     remarks: {
       type: String,
       nullable: true
@@ -55,6 +59,13 @@ const BackupEntity = new EntitySchema({
       target: "User",
       joinColumn: { name: "uploaded_by" },
       onDelete: "CASCADE"
+    },
+    renewedByUser: {
+      type: "many-to-one",
+      target: "User",
+      joinColumn: { name: "renewed_by" },
+      onDelete: "SET NULL",
+      nullable: true
     }
   }
 });

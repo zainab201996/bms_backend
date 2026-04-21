@@ -32,9 +32,13 @@ function serializeLog(row) {
 
 const router = express.Router();
 
-router.get("/", allowRoles(USER_TYPES.ADMIN), async (_req, res) => {
+router.get("/", allowRoles(USER_TYPES.ADMIN), async (req, res) => {
   try {
-    const rows = await getAllLogs();
+    const limitRaw = req.query?.limit;
+    const limit = limitRaw != null ? Number(limitRaw) : undefined;
+    const rows = await getAllLogs({
+      limit: Number.isFinite(limit) && limit > 0 ? limit : undefined
+    });
     return res.json({ logs: rows.map(serializeLog) });
   } catch (_error) {
     return res.status(500).json({ error: "Failed to fetch logs" });

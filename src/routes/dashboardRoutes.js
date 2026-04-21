@@ -5,6 +5,10 @@ const { dashboardStats } = require("../controllers/dashboardController");
 
 const router = express.Router();
 
-router.get("/dashboard-stats", allowRoles(USER_TYPES.ADMIN), dashboardStats);
+router.get(
+  "/dashboard-stats",
+  allowRoles(USER_TYPES.ADMIN, USER_TYPES.COMPANY, USER_TYPES.EMPLOYEE),
+  dashboardStats
+);
 
 module.exports = router;
