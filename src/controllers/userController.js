@@ -2,6 +2,7 @@ const {
   companyCsvCreateFromContent,
   employeeCreate,
   listUsers,
+  listCompanies,
   updateUser,
   deleteUser
 } = require("../services/userService");
@@ -12,6 +13,15 @@ async function getUsers(req, res) {
     return res.json({ users });
   } catch (_error) {
     return res.status(500).json({ error: "Failed to fetch users" });
+  }
+}
+
+async function getCompanies(req, res) {
+  try {
+    const companies = await listCompanies();
+    return res.json({ companies });
+  } catch (_error) {
+    return res.status(500).json({ error: "Failed to fetch companies" });
   }
 }
 
@@ -54,7 +64,9 @@ async function patchUser(req, res) {
       {
         name: req.body?.name,
         email: req.body?.email,
-        location: req.body?.location
+        location: req.body?.location,
+        software_types: req.body?.software_types,
+        company_stage: req.body?.company_stage
       },
       req.user.id
     );
@@ -79,6 +91,7 @@ async function removeUser(req, res) {
 
 module.exports = {
   createEmployee,
+  getCompanies,
   getUsers,
   uploadCompaniesCsv,
   patchUser,

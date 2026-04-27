@@ -1,4 +1,4 @@
-const { USER_TYPES } = require("../constants/enums");
+const { COMPANY_STAGES, USER_TYPES } = require("../constants/enums");
 const { AUDIT_ACTIONS, AUDIT_TABLES } = require("../constants/auditLog");
 const { usersRepo, addUser, addAuditLog } = require("../data/store");
 const { hashPassword, randomTempPassword } = require("../utils/security");
@@ -6,6 +6,23 @@ const { parseCompanyCsvRows } = require("../utils/csv");
 
 function normalizeText(value) {
   return (value || "").trim();
+}
+
+function parseSoftwareTypes(rawValue) {
+  if (rawValue == null) return [];
+  if (Array.isArray(rawValue)) {
+    return rawValue.map((item) => normalizeText(item)).filter(Boolean);
+  }
+  if (typeof rawValue !== "string") return [];
+  return rawValue
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function serializeSoftwareTypes(list) {
+  const normalized = parseSoftwareTypes(list);
+  return normalized.length ? normalized.join(", ") : null;
 }
 
 function buildUsernameBase(name, email) {
@@ -35,6 +52,9 @@ async function companyCsvCreate(rows, actorUserId) {
     const name = normalizeText(row.name || row.company_name || row.company || row["company name"]);
     const email = normalizeText(row.email).toLowerCase();
     const location = normalizeText(row.address || row.location);
+    const softwareTypes = serializeSoftwareTypes(row.software_types || row["software types"]);
+    const companyStageRaw = normalizeText(row.company_stage || row["company stage"]).toUpperCase();
+    const companyStage = COMPANY_STAGES[companyStageRaw] || COMPANY_STAGES.ONBOARDING;
 
     if (!name || !email) {
       throw new Error("Each company row must include name and email");
@@ -53,7 +73,9 @@ async function companyCsvCreate(rows, actorUserId) {
       username: generatedUsername,
       password_hash: hashPassword(tempPassword),
       type: USER_TYPES.COMPANY,
-      location
+      location,
+      software_types: softwareTypes,
+      company_stage: companyStage
     });
     created.push({
       id: user.id,
@@ -135,11 +157,13 @@ function toPublicUser(u) {
     email: u.email,
     username: u.username,
     type: u.type,
-    location: u.location || null
+    location: u.location || null,
+    software_types: parseSoftwareTypes(u.software_types),
+    company_stage: u.company_stage || (u.type === USER_TYPES.COMPANY ? COMPANY_STAGES.ONBOARDING : null)
   };
 }
 
-async function updateUser(targetId, { name, email, location }, actorUserId) {
+async function updateUser(targetId, { name, email, location, software_types, company_stage }, actorUserId) {
   const repo = usersRepo();
   const user = await repo.findOne({ where: { id: targetId } });
   if (!user) {
@@ -172,6 +196,24 @@ async function updateUser(targetId, { name, email, location }, actorUserId) {
     user.location = normalizeText(location) || null;
   }
 
+  if (software_types !== undefined) {
+    if (user.type !== USER_TYPES.COMPANY) {
+      throw new Error("Software types are only applicable to company users");
+    }
+    user.software_types = serializeSoftwareTypes(software_types);
+  }
+
+  if (company_stage !== undefined) {
+    if (user.type !== USER_TYPES.COMPANY) {
+      throw new Error("Company stage is only applicable to company users");
+    }
+    const normalizedStage = normalizeText(company_stage).toUpperCase();
+    if (!COMPANY_STAGES[normalizedStage]) {
+      throw new Error(`company_stage must be one of: ${Object.keys(COMPANY_STAGES).join(", ")}`);
+    }
+    user.company_stage = COMPANY_STAGES[normalizedStage];
+  }
+
   const saved = await repo.save(user);
   if (actorUserId != null) {
     await addAuditLog(actorUserId, AUDIT_ACTIONS.USER_UPDATED, {
@@ -180,6 +222,14 @@ async function updateUser(targetId, { name, email, location }, actorUserId) {
     });
   }
   return toPublicUser(saved);
+}
+
+async function listCompanies() {
+  const users = await usersRepo().find({
+    where: { type: USER_TYPES.COMPANY },
+    order: { id: "ASC" }
+  });
+  return users.map((u) => toPublicUser(u));
 }
 
 async function deleteUser(targetId, adminUser) {
@@ -217,6 +267,7 @@ module.exports = {
   companyCsvCreateFromContent,
   companyCsvCreate,
   listUsers,
+  listCompanies,
   updateUser,
   deleteUser
 };

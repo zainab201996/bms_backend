@@ -21,6 +21,8 @@ async function listBackupsWithNames(where) {
     renewed_file_path: backup.renewed_file_path,
     renewed_by: backup.renewed_by === null ? null : Number(backup.renewed_by),
     remarks: backup.remarks,
+    company_remarks: backup.company_remarks || null,
+    payment_screenshot_path: backup.payment_screenshot_path || null,
     created_at: backup.created_at,
     updated_at: backup.updated_at,
     company_name: backup.uploader?.name || null,
@@ -28,11 +30,16 @@ async function listBackupsWithNames(where) {
   }));
 }
 
-async function createBackup({ companyUser, absoluteFilePath }) {
+async function createBackup({ companyUser, absoluteFilePath, companyRemarks, paymentScreenshotPath }) {
   const normalized = path.resolve(absoluteFilePath);
   assertPathInsideBackupsRoot(normalized);
   if (!normalized.toLowerCase().endsWith(".zip")) {
     throw new Error("Only ZIP file names are allowed");
+  }
+
+  const normalizedPaymentScreenshotPath = paymentScreenshotPath ? path.resolve(paymentScreenshotPath) : null;
+  if (normalizedPaymentScreenshotPath) {
+    assertPathInsideBackupsRoot(normalizedPaymentScreenshotPath);
   }
 
   const repo = backupsRepo();
@@ -43,7 +50,9 @@ async function createBackup({ companyUser, absoluteFilePath }) {
     file_path: normalized,
     renewed_file_path: null,
     renewed_by: null,
-    remarks: null
+    remarks: null,
+    company_remarks: companyRemarks ? String(companyRemarks).trim() : null,
+    payment_screenshot_path: normalizedPaymentScreenshotPath
   });
   const saved = await repo.save(backup);
   await addAuditLog(companyUser.id, AUDIT_ACTIONS.BACKUP_CREATED, {

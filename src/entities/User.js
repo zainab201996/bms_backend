@@ -31,6 +31,16 @@ const UserEntity = new EntitySchema({
       type: String,
       nullable: true
     },
+    software_types: {
+      type: String,
+      nullable: true
+    },
+    company_stage: {
+      type: "enum",
+      enumName: "company_stage_enum",
+      enum: ["ONBOARDING", "ACTIVE", "PAYMENT_PENDING", "SUSPENDED"],
+      nullable: true
+    },
     created_at: {
       type: "timestamptz",
       createDate: true

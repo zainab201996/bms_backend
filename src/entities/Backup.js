@@ -34,6 +34,14 @@ const BackupEntity = new EntitySchema({
       type: String,
       nullable: true
     },
+    company_remarks: {
+      type: String,
+      nullable: true
+    },
+    payment_screenshot_path: {
+      type: String,
+      nullable: true
+    },
     created_at: {
       type: "timestamptz",
       createDate: true

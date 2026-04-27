@@ -2,7 +2,7 @@ const app = require("./app");
 const { AppDataSource } = require("./data-source");
 const { seedInitialUsers } = require("./data/store");
 const { ensureDatabaseExists } = require("./db-init");
-const { ensureBackupSchemaColumns } = require("./schema-sync");
+const { ensureBackupSchemaColumns, ensureUserSchemaColumns } = require("./schema-sync");
 
 const PORT = process.env.PORT || 5000;
 
@@ -11,6 +11,7 @@ async function bootstrap() {
     await ensureDatabaseExists();
     await AppDataSource.initialize();
     await ensureBackupSchemaColumns();
+    await ensureUserSchemaColumns();
     await seedInitialUsers();
 
     app.listen(PORT, () => {

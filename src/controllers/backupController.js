@@ -22,7 +22,15 @@ async function listBackups(req, res) {
 async function uploadBackup(req, res) {
   try {
     const absolutePath = path.resolve(req.file.path);
-    const backup = await createBackup({ companyUser: req.user, absoluteFilePath: absolutePath });
+    const paymentScreenshotPath = req.paymentScreenshot?.path
+      ? path.resolve(req.paymentScreenshot.path)
+      : null;
+    const backup = await createBackup({
+      companyUser: req.user,
+      absoluteFilePath: absolutePath,
+      companyRemarks: req.body?.remarks,
+      paymentScreenshotPath
+    });
     return res.status(201).json({ backup });
   } catch (error) {
     return res.status(400).json({ error: error.message });
