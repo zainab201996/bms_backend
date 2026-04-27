@@ -121,6 +121,34 @@ async function getRenewedBackupForDownload(user, backupId) {
   return backup;
 }
 
+async function getPaymentScreenshotForDownload(user, backupId) {
+  const repo = backupsRepo();
+  const backup = await repo.findOne({ where: { id: backupId } });
+  if (!backup) throw new Error("Backup not found");
+  if (!backup.payment_screenshot_path) throw new Error("No payment attachment for this record");
+
+  if (user.type === USER_TYPES.COMPANY && backup.company_id !== user.id) {
+    throw new Error("Company can only access own backups");
+  }
+  if (
+    user.type === USER_TYPES.EMPLOYEE &&
+    backup.status !== BACKUP_STATUS.APPROVED &&
+    backup.renewed_by !== user.id
+  ) {
+    throw new Error("Employee can only access approved or self-renewed backups");
+  }
+  if (
+    user.type !== USER_TYPES.ADMIN &&
+    user.type !== USER_TYPES.COMPANY &&
+    user.type !== USER_TYPES.EMPLOYEE
+  ) {
+    throw new Error("Access denied");
+  }
+
+  assertPathInsideBackupsRoot(path.resolve(backup.payment_screenshot_path));
+  return backup;
+}
+
 async function adminUpdateStatus({ adminUser, backupId, nextStatus, remarks }) {
   const repo = backupsRepo();
   const backup = await repo.findOne({ where: { id: backupId } });
@@ -184,6 +212,7 @@ module.exports = {
   listBackupsForUser,
   getBackupForDownload,
   getRenewedBackupForDownload,
+  getPaymentScreenshotForDownload,
   adminUpdateStatus,
   employeeSubmitRenewal
 };

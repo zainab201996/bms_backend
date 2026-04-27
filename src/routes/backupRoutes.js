@@ -5,6 +5,7 @@ const {
   reviewBackup,
   downloadBackup,
   downloadRenewedBackup,
+  downloadPaymentAttachment,
   submitRenewal
 } = require("../controllers/backupController");
 const { uploadCompanyZip, uploadRenewedZip } = require("../middleware/uploadBackup");
@@ -21,6 +22,11 @@ router.get(
   "/:id/renewed-download",
   allowRoles(USER_TYPES.ADMIN, USER_TYPES.COMPANY),
   downloadRenewedBackup
+);
+router.get(
+  "/:id/payment-attachment-download",
+  allowRoles(USER_TYPES.ADMIN, USER_TYPES.COMPANY, USER_TYPES.EMPLOYEE),
+  downloadPaymentAttachment
 );
 router.post("/:id/renewal", allowRoles(USER_TYPES.EMPLOYEE), uploadRenewedZip, submitRenewal);
 

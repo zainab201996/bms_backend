@@ -1,5 +1,6 @@
 const {
   companyCsvCreateFromContent,
+  companyCreate,
   employeeCreate,
   listUsers,
   listCompanies,
@@ -53,6 +54,24 @@ async function createEmployee(req, res) {
   }
 }
 
+async function createCompany(req, res) {
+  try {
+    const user = await companyCreate(
+      {
+        name: req.body?.name,
+        email: req.body?.email,
+        location: req.body?.location,
+        software_types: req.body?.software_types,
+        company_stage: req.body?.company_stage
+      },
+      req.user.id
+    );
+    return res.status(201).json({ user });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+}
+
 async function patchUser(req, res) {
   try {
     const id = Number(req.params.id);
@@ -90,6 +109,7 @@ async function removeUser(req, res) {
 }
 
 module.exports = {
+  createCompany,
   createEmployee,
   getCompanies,
   getUsers,

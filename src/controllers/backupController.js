@@ -6,6 +6,7 @@ const {
   listBackupsForUser,
   getBackupForDownload,
   getRenewedBackupForDownload,
+  getPaymentScreenshotForDownload,
   adminUpdateStatus,
   employeeSubmitRenewal
 } = require("../services/backupService");
@@ -59,6 +60,7 @@ async function reviewBackup(req, res) {
 function downloadErrorStatus(message) {
   if (message === "Backup not found") return 404;
   if (message === "No renewed backup file for this record") return 404;
+  if (message === "No payment attachment for this record") return 404;
   if (message === "File not found on server") return 404;
   return 403;
 }
@@ -89,6 +91,19 @@ async function downloadRenewedBackup(req, res) {
   }
 }
 
+async function downloadPaymentAttachment(req, res) {
+  try {
+    const backup = await getPaymentScreenshotForDownload(req.user, Number(req.params.id));
+    const abs = path.resolve(backup.payment_screenshot_path);
+    if (!fs.existsSync(abs)) {
+      return res.status(404).json({ error: "File not found on server" });
+    }
+    return res.download(abs, path.basename(abs));
+  } catch (error) {
+    return res.status(downloadErrorStatus(error.message)).json({ error: error.message });
+  }
+}
+
 async function submitRenewal(req, res) {
   try {
     const result = await employeeSubmitRenewal({
@@ -108,5 +123,6 @@ module.exports = {
   reviewBackup,
   downloadBackup,
   downloadRenewedBackup,
+  downloadPaymentAttachment,
   submitRenewal
 };

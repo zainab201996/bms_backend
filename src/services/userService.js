@@ -138,6 +138,59 @@ async function employeeCreate({ name, email }, actorUserId) {
   };
 }
 
+async function companyCreate({ name, email, location, software_types, company_stage }, actorUserId) {
+  const repo = usersRepo();
+  const normalizedName = normalizeText(name);
+  const normalizedEmail = normalizeText(email).toLowerCase();
+  const normalizedLocation = normalizeText(location) || null;
+  const normalizedStage = normalizeText(company_stage).toUpperCase();
+
+  if (!normalizedName || !normalizedEmail) {
+    throw new Error("Company name and email are required");
+  }
+
+  const existingByEmail = await repo.findOne({ where: { email: normalizedEmail } });
+  if (existingByEmail) {
+    throw new Error(`User already exists for email: ${normalizedEmail}`);
+  }
+
+  if (normalizedStage && !COMPANY_STAGES[normalizedStage]) {
+    throw new Error(`company_stage must be one of: ${Object.keys(COMPANY_STAGES).join(", ")}`);
+  }
+
+  const tempPassword = randomTempPassword();
+  const generatedUsername = await generateUniqueUsername(normalizedName, normalizedEmail);
+  const user = await addUser({
+    name: normalizedName,
+    email: normalizedEmail,
+    username: generatedUsername,
+    password_hash: hashPassword(tempPassword),
+    type: USER_TYPES.COMPANY,
+    location: normalizedLocation,
+    software_types: serializeSoftwareTypes(software_types),
+    company_stage: normalizedStage ? COMPANY_STAGES[normalizedStage] : COMPANY_STAGES.ONBOARDING
+  });
+
+  if (actorUserId != null) {
+    await addAuditLog(actorUserId, AUDIT_ACTIONS.USER_CREATED, {
+      id: user.id,
+      table: AUDIT_TABLES.USERS
+    });
+  }
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    username: user.username,
+    password: tempPassword,
+    type: user.type,
+    location: user.location || null,
+    software_types: parseSoftwareTypes(user.software_types),
+    company_stage: user.company_stage || COMPANY_STAGES.ONBOARDING
+  };
+}
+
 async function companyCsvCreateFromContent(csvContent, actorUserId) {
   const rows = parseCompanyCsvRows(csvContent);
   return companyCsvCreate(rows, actorUserId);
@@ -264,6 +317,7 @@ async function deleteUser(targetId, adminUser) {
 
 module.exports = {
   employeeCreate,
+  companyCreate,
   companyCsvCreateFromContent,
   companyCsvCreate,
   listUsers,
