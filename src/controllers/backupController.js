@@ -22,6 +22,9 @@ async function listBackups(req, res) {
 
 async function uploadBackup(req, res) {
   try {
+    if (!req.paymentScreenshot?.path) {
+      return res.status(400).json({ error: "Payment screenshot is required before backup upload" });
+    }
     const absolutePath = path.resolve(req.file.path);
     const paymentScreenshotPath = req.paymentScreenshot?.path
       ? path.resolve(req.paymentScreenshot.path)

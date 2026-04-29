@@ -9,6 +9,7 @@ const AUDIT_ACTIONS = {
   USER_CREATED: "User Created",
   USER_UPDATED: "User Updated",
   USER_DELETED: "User Deleted",
+  USER_PASSWORD_RESET: "User Password Reset",
   BACKUP_CREATED: "Backup Created",
   BACKUP_UPDATED: "Backup Updated"
 };

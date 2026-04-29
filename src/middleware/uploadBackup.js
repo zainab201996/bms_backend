@@ -38,7 +38,7 @@ const companyStorage = multer.diskStorage({
       cb(null, uniqueZipName(file.originalname));
       return;
     }
-    cb(null, uniqueAttachmentName(file.originalname, ".png"));
+    cb(null, uniqueAttachmentName(file.originalname, ".pdf"));
   }
 });
 
@@ -59,13 +59,13 @@ const companyFileFilter = (_req, file, cb) => {
     return zipFilter(_req, file, cb);
   }
   if (file.fieldname === "paymentScreenshot") {
-    const allowedImageTypes = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
+    const allowedImageTypes = new Set(["application/pdf", "image/jpeg", "image/jpg", "image/webp"]);
     const ext = (path.extname(file.originalname || "").toLowerCase() || "").replace(".", "");
-    const allowedImageExt = new Set(["png", "jpg", "jpeg", "webp"]);
+    const allowedImageExt = new Set(["pdf", "jpg", "jpeg", "webp"]);
     if (allowedImageTypes.has(file.mimetype) || allowedImageExt.has(ext)) {
       return cb(null, true);
     }
-    return cb(new Error("Payment screenshot must be PNG, JPG, JPEG, or WEBP"));
+    return cb(new Error("Payment screenshot must be PDF, JPG, JPEG, or WEBP"));
   }
   return cb(new Error("Unexpected upload field"));
 };

@@ -38,6 +38,9 @@ async function createBackup({ companyUser, absoluteFilePath, companyRemarks, pay
   }
 
   const normalizedPaymentScreenshotPath = paymentScreenshotPath ? path.resolve(paymentScreenshotPath) : null;
+  if (!normalizedPaymentScreenshotPath) {
+    throw new Error("Payment screenshot is required before backup upload");
+  }
   if (normalizedPaymentScreenshotPath) {
     assertPathInsideBackupsRoot(normalizedPaymentScreenshotPath);
   }

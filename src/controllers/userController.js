@@ -5,7 +5,8 @@ const {
   listUsers,
   listCompanies,
   updateUser,
-  deleteUser
+  deleteUser,
+  resetUserPassword
 } = require("../services/userService");
 
 async function getUsers(req, res) {
@@ -108,6 +109,19 @@ async function removeUser(req, res) {
   }
 }
 
+async function adminResetUserPassword(req, res) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ error: "Invalid user id" });
+    }
+    const user = await resetUserPassword(id, req.user);
+    return res.json({ user });
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+}
+
 module.exports = {
   createCompany,
   createEmployee,
@@ -115,5 +129,6 @@ module.exports = {
   getUsers,
   uploadCompaniesCsv,
   patchUser,
-  removeUser
+  removeUser,
+  adminResetUserPassword
 };

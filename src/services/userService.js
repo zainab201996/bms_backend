@@ -315,6 +315,44 @@ async function deleteUser(targetId, adminUser) {
   await repo.remove(user);
 }
 
+async function resetUserPassword(targetId, adminUser) {
+  const id = Number(targetId);
+  if (!Number.isFinite(id)) {
+    throw new Error("Invalid user id");
+  }
+
+  const repo = usersRepo();
+  const user = await repo.findOne({ where: { id } });
+  if (!user) {
+    throw new Error("User not found");
+  }
+  if (user.type !== USER_TYPES.COMPANY && user.type !== USER_TYPES.EMPLOYEE) {
+    throw new Error("Password reset is only allowed for company and employee users");
+  }
+  if (user.id === adminUser.id) {
+    throw new Error("Cannot reset your own password from this endpoint");
+  }
+
+  const tempPassword = randomTempPassword();
+  user.password_hash = hashPassword(tempPassword);
+  await repo.save(user);
+
+  await addAuditLog(adminUser.id, AUDIT_ACTIONS.USER_PASSWORD_RESET, {
+    id: user.id,
+    table: AUDIT_TABLES.USERS,
+    user_type: user.type
+  });
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    username: user.username,
+    password: tempPassword,
+    type: user.type
+  };
+}
+
 module.exports = {
   employeeCreate,
   companyCreate,
@@ -323,5 +361,6 @@ module.exports = {
   listUsers,
   listCompanies,
   updateUser,
-  deleteUser
+  deleteUser,
+  resetUserPassword
 };
